@@ -55,10 +55,86 @@ const App = () => {
     }
     return array;
   }
+
+  const handleClick = (id) => {
+    // get index of clicked image
+    const found = listOfImages.findIndex(i => i.uniqueId === id)
+    // found === index of the image
+
+    const modified = listOfImages.map((i) => {
+      if (i.uniqueId === id) {
+        return { ...i, picked_by_user: true };
+      }
+      return i;
+    });
+
+    if (selected === null) {
+      // we pick the img at a certain index
+      setSelected(modified[found]);
+      // grab array of objects with picked_by_user
+      setListOfImages(modified);
+      // if click occured then that is a step, so we increment by one
+      setTotalSteps(totalSteps + 1)
+    } else {
+      // if we don't set out list to modified it is not going to open 2nd card
+      // why? beacuse 2nd card is set to null
+      setListOfImages(modified)
+      // if 1st and 2nd imgs didn't match, we do...
+      if (listOfImages[found].id !== selected.id) {
+        setTotalSteps(totalSteps + 1);
+        // since we did't get a match, we need to reset everything to picked_by_user:false
+        // beacuse we need to hide images and start all over
+        const data = listOfImages.map((i) => ({ ...i, picked_by_user: false }));
+        // we did click on img so we need to setClick to true
+        setClick(true);
+        // after flipping 2nd card it needs to wait 1 sec
+        setTimeout(() => {
+          // we didn't guess 2nd img so we need to unmark picked_by_user
+          // we need to set the list to picked_by_user: false so it hides verything again
+          setListOfImages(data);
+          // we need to unmark clicked imgs so we are able to click on them again
+          setClick(false);
+        }, 1000);
+        // unmark img as selected because we start again
+        setSelected(null);
+      }
+      //if clicked img and state photo has common id, we apply identifier for further deactivation
+      else {
+        // check if same img not clicked twice
+        if (listOfImages[found].uniqueId !== selected.uniqueId) {
+          //just like comparing natural ids, if we didn't get a match, we need to do the same for uniqueId
+          // why? beacuse there is no match we need to increment counter
+          setTotalSteps(totalSteps + 1);
+          
+          //we grab the existing object and add 1 more key called blur_hash
+          const newData = listOfImages.map((i) => i.id === selected.id ? { ...i, blur_hash: '' } : i);
+          //two imgs will have empty blur_hash, so no longer will be dissappeared and active
+          setListOfImages(newData);
+          // empty temp state
+          setSelected(null);
+        }
+      }
+    }
+
+
+
+
+  }
   
   useEffect(() => {
-    handleFetching();
-  },[])
+    setLoading('Loading...');
+    setSelected(null);
+    setTotalSteps(0);
+    setListOfImages([]);
+    setTimeout(() => {
+      setLoading("");
+      handleFetching();
+    }, 500);
+  }, [reset]);
+  
+  const resetApp = () => {
+    setReset(!reset);
+  }
 
 
 
@@ -66,17 +142,33 @@ const App = () => {
     <>
       <div className="App">
         {listOfImages.map((item) => {
+          let imgClass;
+          if (!item.picked_by_user) {
+            imgClass = "";
+          }
+          if (item.picked_by_user || !item.blur_hash) {
+            imgClass = "show";
+          }
           return (
-            <div className='single-card'>
-              <img src={item.urls.thumb} alt={item.alt_description} />
+            
+            <div
+              key={item.uniqueId}
+              className='single-card'
+              disabled={!item.blur_hash}
+              // if div is not clicked then we handleClick() or just return null === no action recuared
+              onClick={!click ? () => handleClick(item.uniqueId) : null}>
+              <img
+                src={item.urls.thumb}
+                alt={item.alt_description}
+                className={imgClass} />
             </div>
           );
         })}  
     </div>
       <div id='click'>
         <span>Clicks</span>
-        <span className='counter'>0</span>
-        <button>Reset</button>
+        <span id='counter'>{totalSteps}</span>
+        <button onClick={resetApp}>Reset</button>
       </div>
       </>
   );
